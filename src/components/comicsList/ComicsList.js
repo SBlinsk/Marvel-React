@@ -6,13 +6,33 @@ import ErrorMessage from "../errorMessage/ErrorMessage";
 
 import "./comicsList.scss";
 
+const setContent = (process, Component, newItemsLoading) => {
+  switch (process) {
+    case "waiting":
+      return <Spinner />;
+      break;
+    case "loading":
+      return newItemsLoading ? <Component /> : <Spinner />;
+      break;
+    case "confirmed":
+      return <Component />;
+      break;
+    case "Error":
+      return <ErrorMessage />;
+      break;
+    default:
+      throw new Error("Unexpected process state.");
+  }
+};
+
 const ComicsList = () => {
   const [comicsList, setComicsList] = useState([]);
   const [newItemsLoading, setNewItemsLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const [comicsEnded, setComicsEnded] = useState(false);
 
-  const { loading, error, getAllComics } = useMarvelService();
+  const { getAllComics, process, setProcess } =
+    useMarvelService();
 
   useEffect(() => {
     onRequest(offset, true);
@@ -20,16 +40,16 @@ const ComicsList = () => {
 
   const onRequest = (offset, initial) => {
     initial ? setNewItemsLoading(false) : setNewItemsLoading(true);
-    getAllComics(offset).then(onComicsListLoaded)
-    
+    getAllComics(offset)
+      .then(onComicsListLoaded)
+      .then(() => setProcess("confirmed"));
   };
 
   const onComicsListLoaded = (newComicsList) => {
     if (comicsList === null) {
-        // Обработка случая, когда comicsList равен null
-        console.log("comicsList is null");
-        return;
-      }
+      console.log("comicsList is null");
+      return;
+    }
     let ended = false;
     if (newComicsList.length < 8) {
       ended = true;
@@ -44,7 +64,7 @@ const ComicsList = () => {
     const items = arr.map((item) => {
       return (
         <li className="comics__item" key={item.id}>
-          <Link to ={`/comics/${item.id}`}>
+          <Link to={`/comics/${item.id}`}>
             <img
               src={item.thumbnail}
               alt="ultimate war"
@@ -59,15 +79,9 @@ const ComicsList = () => {
     return <ul className="comics__grid">{items}</ul>;
   };
 
-  const items = renderItems(comicsList);
-  const errorMessage = error ? <ErrorMessage /> : null;
-  const spinner = newItemsLoading || loading ? <Spinner /> : null;
-
   return (
     <div className="comics__list">
-      {errorMessage}
-      {spinner}
-      {items}
+      {setContent(process, () => renderItems(comicsList), newItemsLoading)}
       <button
         disabled={newItemsLoading}
         style={{ display: comicsEnded ? "none" : "block" }}
